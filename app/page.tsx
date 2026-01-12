@@ -29,7 +29,7 @@ export default function Home() {
 
     try {
       // 1. 백엔드(8003번)에게 파일 전송
-      const response = await fetch("http://localhost:8003/translate_book", {
+      const response = await fetch("https://translate-a-book.onrender.com", {
         method: "POST",
         body: formData,
       });
