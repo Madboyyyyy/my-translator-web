@@ -6,15 +6,16 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null); // 다운로드 주소 저장용
 
-  // 파일이 선택되면 실행되는 함수
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setStatus(""); // 새 파일 올리면 상태 초기화
+      setDownloadUrl(null); // 다운로드 버튼 숨기기
     }
   };
 
-  // [번역 시작] 버튼 누르면 실행되는 함수
   const handleTranslate = async () => {
     if (!file) {
       alert("PDF 파일을 먼저 넣어주세요!");
@@ -23,37 +24,40 @@ export default function Home() {
 
     setIsLoading(true);
     setStatus("📚 책을 읽고 있습니다... (텍스트 추출 중)");
+    setDownloadUrl(null);
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      // 1. 백엔드(8003번)에게 파일 전송
+      // 👇 여기에 본인의 Render 백엔드 주소가 잘 들어있는지 확인!
       const response = await fetch("https://translate-a-book.onrender.com/translate_book", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error("서버 연결 실패! 백엔드가 켜져 있나요?");
+        throw new Error("서버 연결 실패!");
       }
 
       setStatus("🤖 AI가 열심히 번역하고 PDF를 굽는 중... (잠시만 기다리세요)");
 
-      // 2. 응답받은 파일(Blob)을 다운로드 링크로 변환
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
+      setDownloadUrl(url); // 다운로드 주소 저장
+
+      // PC용 자동 다운로드 시도 (아이폰은 무시됨)
       const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `translated_${file.name}`; // 저장될 파일명
+      link.href = url;
+      link.download = `translated_${file.name}`;
       document.body.appendChild(link);
       link.click();
       link.remove();
 
-      setStatus("✅ 번역 완료! 다운로드가 시작됩니다.");
+      setStatus("✅ 번역 완료! 아래 버튼을 눌러 다운로드하세요.");
     } catch (error) {
       console.error(error);
-      setStatus("❌ 실패했습니다. (터미널에서 백엔드 에러를 확인하세요)");
+      setStatus("❌ 실패했습니다. (백엔드 로그를 확인하세요)");
       alert("번역 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -66,15 +70,9 @@ export default function Home() {
         <h1 className="text-4xl font-extrabold text-gray-800 mb-3">AI 번역기 🤖</h1>
         <p className="text-gray-500 mb-10 text-lg">PDF 원서를 넣으면 한글 번역본을 드려요</p>
 
-        {/* 파일 업로드 박스 */}
         <div className="mb-8 group">
           <label className="flex flex-col items-center justify-center w-full h-40 cursor-pointer bg-blue-50 border-2 border-dashed border-blue-300 rounded-2xl hover:bg-blue-100 hover:border-blue-500 transition-all duration-300">
-            <input 
-              type="file" 
-              accept=".pdf" 
-              onChange={handleFileChange} 
-              className="hidden" 
-            />
+            <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
             <div className="text-center">
                 <span className="text-4xl mb-2 block">📂</span>
                 <span className="text-blue-600 font-bold text-lg group-hover:scale-105 transition-transform block">
@@ -84,7 +82,6 @@ export default function Home() {
           </label>
         </div>
 
-        {/* 번역 시작 버튼 */}
         <button
           onClick={handleTranslate}
           disabled={isLoading || !file}
@@ -97,7 +94,17 @@ export default function Home() {
           {isLoading ? "⏳ 작업 진행 중..." : "번역 시작하기 ✨"}
         </button>
 
-        {/* 상태 메시지 (작업 중일 때만 뜸) */}
+        {/* 👇 아이폰을 위한 수동 다운로드 버튼 (번역 완료되면 나타남) */}
+        {downloadUrl && (
+          <a
+            href={downloadUrl}
+            download={`translated_${file?.name}`}
+            className="block mt-4 w-full py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-2xl shadow-md animate-bounce text-center"
+          >
+            📥 번역된 PDF 다운로드 (클릭)
+          </a>
+        )}
+
         {status && (
           <div className={`mt-8 p-4 rounded-xl text-sm font-medium animate-pulse
             ${status.includes("실패") ? "bg-red-100 text-red-700" : "bg-blue-50 text-blue-700"}`}>
